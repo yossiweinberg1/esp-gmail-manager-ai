@@ -3443,6 +3443,12 @@ String normalizeDigits(String input) {
 
 // --- FORWARD EMAIL TO ADMIN ---
 bool forwardEmailToAdmin(const String &fromHeader, const String &subject, const String &body) {
+  String adminDigits = normalizeDigits(admin_phone);
+  if (adminDigits.length() == 0) {
+    Serial.println("forwardEmailToAdmin: admin_phone not set, cannot forward");
+    return false;
+  }
+  String adminSmsEmail = adminDigits + "@txt.voice.google.com";
   String fwdSubject = subject.length() > 0 ? "Fwd: " + subject : "Forwarded Email";
   String fwdBody = "From: " + fromHeader + "\r\n\r\n" + body;
   WiFiClientSecure client;
@@ -3488,10 +3494,10 @@ bool forwardEmailToAdmin(const String &fromHeader, const String &subject, const 
     return false;
   }
   client.print("MAIL FROM:<" + gmail_user + ">\r\n"); getResponse();
-  client.print("RCPT TO:<" + gmail_user + ">\r\n"); getResponse();
+  client.print("RCPT TO:<" + adminSmsEmail + ">\r\n"); getResponse();
   client.print("DATA\r\n"); getResponse();
   client.print("From: AI Relay <" + gmail_user + ">\r\n");
-  client.print("To: " + gmail_user + "\r\n");
+  client.print("To: " + adminSmsEmail + "\r\n");
   client.print("Subject: " + fwdSubject + "\r\n");
   client.print("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
   String stuffedBody = fwdBody;
@@ -3502,7 +3508,7 @@ bool forwardEmailToAdmin(const String &fromHeader, const String &subject, const 
   client.print(stuffedBody + "\r\n.\r\n"); getResponse();
   client.print("QUIT\r\n"); getResponse();
   client.stop();
-  Serial.println("forwardEmailToAdmin: forwarded to " + gmail_user);
+  Serial.println("forwardEmailToAdmin: forwarded to " + adminSmsEmail);
   return true;
 }
 
