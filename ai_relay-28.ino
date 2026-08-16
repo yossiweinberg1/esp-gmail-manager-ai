@@ -566,8 +566,8 @@ void setup() {
     processOfflineQueue();
   }
 
-  setPausedState(true);
-  updateScreen("PAUSED", "Press BOOT button to start");
+  setPausedState(false);
+  updateScreen("AI Relay", "Running...");
 
   if (uiTaskHandle == nullptr) {
     xTaskCreatePinnedToCore(uiTask, "uiTask", 8192, nullptr, 2, &uiTaskHandle, 1);
