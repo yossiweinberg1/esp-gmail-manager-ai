@@ -45,6 +45,7 @@ String gemini_api_key  = SECRET_GEMINI_KEY;
 String gmail_user      = SECRET_GMAIL_USER;
 String gmail_pass      = SECRET_GMAIL_PASS;
 String admin_phone     = SECRET_ADMIN_PHONE;
+String sms_gateway     = "";  // e.g. "vtext.com" for Verizon, "tmomail.net" for T-Mobile
 String default_persona = DEFAULT_PERSONA;
 
 void *allocPsram(size_t bytes) {
@@ -1274,6 +1275,7 @@ void loadSDConfig() {
   if (doc.containsKey("gmail_user"))    gmail_user = doc["gmail_user"].as<String>();
   if (doc.containsKey("gmail_pass"))    gmail_pass = doc["gmail_pass"].as<String>();
   if (doc.containsKey("admin_phone"))   admin_phone = doc["admin_phone"].as<String>();
+  if (doc.containsKey("sms_gateway"))   sms_gateway = doc["sms_gateway"].as<String>();
   if (doc.containsKey("default_persona")) default_persona = doc["default_persona"].as<String>();
   if (doc.containsKey("timezone")) {
     timezoneStr = doc["timezone"].as<String>();
@@ -1315,6 +1317,7 @@ bool saveWiFiConfig() {
         if (existing.containsKey("timezone")) doc["timezone"] = existing["timezone"].as<String>();
         if (existing.containsKey("gemini_key")) doc["gemini_key"] = existing["gemini_key"].as<String>();
         if (existing.containsKey("admin_phone")) doc["admin_phone"] = existing["admin_phone"].as<String>();
+        if (existing.containsKey("sms_gateway")) doc["sms_gateway"] = existing["sms_gateway"].as<String>();
         if (existing.containsKey("default_persona")) doc["default_persona"] = existing["default_persona"].as<String>();
         if (existing.containsKey("gemini_keys") && existing["gemini_keys"].is<JsonArray>()) {
           JsonArray sourceKeys = existing["gemini_keys"].as<JsonArray>();
@@ -1331,6 +1334,7 @@ bool saveWiFiConfig() {
   doc["wifi_ssid"] = wifi_ssid;
   doc["wifi_pass"] = wifi_password;
   doc["admin_phone"] = admin_phone;
+  if (sms_gateway.length() > 0) doc["sms_gateway"] = sms_gateway;
   doc["default_persona"] = default_persona;
 
   String out;
@@ -3448,68 +3452,11 @@ bool forwardEmailToAdmin(const String &fromHeader, const String &subject, const 
     Serial.println("forwardEmailToAdmin: admin_phone not set, cannot forward");
     return false;
   }
-  String adminSmsEmail = adminDigits + "@txt.voice.google.com";
-  String fwdSubject = subject.length() > 0 ? "Fwd: " + subject : "Forwarded Email";
+  String adminSmsEmail = adminDigits + "@" + (sms_gateway.length() > 0 ? sms_gateway : "txt.voice.google.com");
   String fwdBody = "From: " + fromHeader + "\r\n\r\n" + body;
-  WiFiClientSecure client;
-  client.setCACert(GOOGLE_ROOT_CA);
-  client.setTimeout(3000);
-  if (!client.connect("smtp.gmail.com", 465)) {
-    Serial.println("forwardEmailToAdmin: SMTP connect failed");
-    return false;
-  }
-  auto getResponse = [&client]() -> String {
-    String resp = "";
-    unsigned long start = millis();
-    while (millis() - start < 3000) {
-      while (client.available()) {
-        resp += (char)client.read();
-        start = millis();
-      }
-      if (resp.endsWith("\r\n")) {
-        int lineStart = resp.lastIndexOf('\n', resp.length() - 3);
-        if (lineStart == -1) lineStart = 0;
-        else lineStart += 1;
-        if (resp.length() >= lineStart + 4) {
-          String code = resp.substring(lineStart, lineStart + 3);
-          char sep = resp.charAt(lineStart + 3);
-          if (isDigit(code.charAt(0)) && isDigit(code.charAt(1)) && isDigit(code.charAt(2)) && sep == ' ') {
-            break;
-          }
-        }
-      }
-      delay(5);
-    }
-    return resp;
-  };
-  getResponse(); // 220 banner
-  client.print("EHLO ESP32\r\n"); getResponse();
-  client.print("AUTH LOGIN\r\n"); getResponse();
-  client.print(base64Encode(gmail_user) + "\r\n"); getResponse();
-  client.print(base64Encode(gmail_pass) + "\r\n");
-  String authResp = getResponse();
-  if (authResp.indexOf("235") == -1) {
-    Serial.println("forwardEmailToAdmin: SMTP auth failed");
-    client.stop();
-    return false;
-  }
-  client.print("MAIL FROM:<" + gmail_user + ">\r\n"); getResponse();
-  client.print("RCPT TO:<" + adminSmsEmail + ">\r\n"); getResponse();
-  client.print("DATA\r\n"); getResponse();
-  client.print("From: AI Relay <" + gmail_user + ">\r\n");
-  client.print("To: " + adminSmsEmail + "\r\n");
-  client.print("Subject: " + fwdSubject + "\r\n");
-  client.print("Content-Type: text/plain; charset=UTF-8\r\n\r\n");
-  String stuffedBody = fwdBody;
-  stuffedBody.replace("\r\n", "\n");
-  stuffedBody.replace("\n", "\r\n");
-  stuffedBody.replace("\r\n.", "\r\n..");
-  if (stuffedBody.startsWith(".")) stuffedBody = "." + stuffedBody;
-  client.print(stuffedBody + "\r\n.\r\n"); getResponse();
-  client.print("QUIT\r\n"); getResponse();
-  client.stop();
-  Serial.println("forwardEmailToAdmin: forwarded to " + adminSmsEmail);
-  return true;
+  bool ok = sendEmailReply(adminSmsEmail, fwdBody);
+  if (ok) Serial.println("forwardEmailToAdmin: forwarded to " + adminSmsEmail);
+  return ok;
 }
 
 // --- RAW SMTP SEND FUNCTION ---
