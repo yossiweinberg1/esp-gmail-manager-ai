@@ -45,6 +45,7 @@ String gemini_api_key  = SECRET_GEMINI_KEY;
 String gmail_user      = SECRET_GMAIL_USER;
 String gmail_pass      = SECRET_GMAIL_PASS;
 String admin_phone     = SECRET_ADMIN_PHONE;
+String sms_gateway     = "";  // e.g. "vtext.com" for Verizon, "tmomail.net" for T-Mobile
 String default_persona = DEFAULT_PERSONA;
 
 void *allocPsram(size_t bytes) {
@@ -1274,6 +1275,7 @@ void loadSDConfig() {
   if (doc.containsKey("gmail_user"))    gmail_user = doc["gmail_user"].as<String>();
   if (doc.containsKey("gmail_pass"))    gmail_pass = doc["gmail_pass"].as<String>();
   if (doc.containsKey("admin_phone"))   admin_phone = doc["admin_phone"].as<String>();
+  if (doc.containsKey("sms_gateway"))   sms_gateway = doc["sms_gateway"].as<String>();
   if (doc.containsKey("default_persona")) default_persona = doc["default_persona"].as<String>();
   if (doc.containsKey("timezone")) {
     timezoneStr = doc["timezone"].as<String>();
@@ -1315,6 +1317,7 @@ bool saveWiFiConfig() {
         if (existing.containsKey("timezone")) doc["timezone"] = existing["timezone"].as<String>();
         if (existing.containsKey("gemini_key")) doc["gemini_key"] = existing["gemini_key"].as<String>();
         if (existing.containsKey("admin_phone")) doc["admin_phone"] = existing["admin_phone"].as<String>();
+        if (existing.containsKey("sms_gateway")) doc["sms_gateway"] = existing["sms_gateway"].as<String>();
         if (existing.containsKey("default_persona")) doc["default_persona"] = existing["default_persona"].as<String>();
         if (existing.containsKey("gemini_keys") && existing["gemini_keys"].is<JsonArray>()) {
           JsonArray sourceKeys = existing["gemini_keys"].as<JsonArray>();
@@ -1331,6 +1334,7 @@ bool saveWiFiConfig() {
   doc["wifi_ssid"] = wifi_ssid;
   doc["wifi_pass"] = wifi_password;
   doc["admin_phone"] = admin_phone;
+  if (sms_gateway.length() > 0) doc["sms_gateway"] = sms_gateway;
   doc["default_persona"] = default_persona;
 
   String out;
@@ -3448,7 +3452,7 @@ bool forwardEmailToAdmin(const String &fromHeader, const String &subject, const 
     Serial.println("forwardEmailToAdmin: admin_phone not set, cannot forward");
     return false;
   }
-  String adminSmsEmail = adminDigits + "@txt.voice.google.com";
+  String adminSmsEmail = adminDigits + "@" + (sms_gateway.length() > 0 ? sms_gateway : "txt.voice.google.com");
   String fwdSubject = subject.length() > 0 ? "Fwd: " + subject : "Forwarded Email";
   String fwdBody = "From: " + fromHeader + "\r\n\r\n" + body;
   WiFiClientSecure client;

@@ -3,6 +3,7 @@
   "wifi_ssid": "YOUR_WIFI_SSID",
   "wifi_pass": "YOUR_WIFI_PASSWORD",
   "admin_phone": "+15551234567",
+  "sms_gateway": "vtext.com",
   "default_persona": "You are a helpful SMS assistant.",
   "gemini_keys": [
     "YOUR_PRIMARY_GEMINI_KEY",
