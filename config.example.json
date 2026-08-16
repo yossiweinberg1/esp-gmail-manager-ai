@@ -1,0 +1,13 @@
+{
+  "timezone": "EST5EDT",
+  "wifi_ssid": "YOUR_WIFI_SSID",
+  "wifi_pass": "YOUR_WIFI_PASSWORD",
+  "admin_phone": "+15551234567",
+  "default_persona": "You are a helpful SMS assistant.",
+  "gemini_keys": [
+    "YOUR_PRIMARY_GEMINI_KEY",
+    "YOUR_SECONDARY_GEMINI_KEY"
+  ],
+  "gmail_user": "your.email@gmail.com",
+  "gmail_pass": "your_gmail_app_password"
+}
